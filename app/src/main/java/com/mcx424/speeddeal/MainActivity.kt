@@ -39,10 +39,7 @@ class MainActivity : ComponentActivity() {
                         state = state,
                         onPlayerCountChange = viewModel::setPlayerCount,
                         onTurnSecondsChange = viewModel::setTurnSeconds,
-                        onStartResume = viewModel::startOrResume,
-                        onPause = viewModel::pause,
-                        onEndTurn = viewModel::endTurnEarly,
-                        onResetTurn = viewModel::resetCurrentTurn
+                        onEndTurn = viewModel::endTurnEarly
                     )
                 }
             }

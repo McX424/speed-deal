@@ -1,6 +1,6 @@
 # Speed Deal
 
-Turn timer for multiplayer card-game tables. Large countdown, seat indicators (P1–P6), configurable turn length, auto-advance with a clear beep when time runs out, and a big **End Turn** button to pass early.
+Turn timer for multiplayer card-game tables. Large countdown, whose-turn indicator (P1–P6), swipe-up settings for players and turn length, auto-advance with a clear beep when time runs out, and a big **Next** button to pass early.
 
 Offline, no accounts, no network, no ads.
 
@@ -8,10 +8,12 @@ Offline, no accounts, no network, no ads.
 
 ## Defaults
 
-| Setting        | Default |
-|----------------|---------|
-| Turn length    | **60 seconds** |
+| Setting        | Default / range |
+|----------------|-----------------|
+| Turn length    | **25 seconds** (min **10**, max **60**) |
 | Player count   | **4** (range 2–6) |
+
+Players and turn length live in a **swipe-up ModalBottomSheet**. The main screen shows only the countdown, current seat (P1/P2/…), and **Next**. Opening the sheet does not pause the timer; changing seconds or player count applies immediately.
 
 ## Requirements
 
@@ -72,12 +74,13 @@ Carl needs his own [Google Play developer account](https://play.google.com/conso
 
 ## Features
 
-1. Configurable turn length (slider; default 60s)
+1. Turn length 10–60s (default 25s) in settings sheet
 2. Large countdown for the current seat
 3. At zero: tone + brief vibrate, timer resets, advances to next player
-4. **End Turn** — same advance + reset
-5. Player count 2–6 with P1…Pn seat indicators
+4. **Next** — same advance + reset
+5. Player count 2–6 in settings sheet
 6. Dark Material 3 Compose UI; screen stays on while the timer runs
+7. Settings sheet does not pause the timer; value changes apply on change
 
 ## Tech
 

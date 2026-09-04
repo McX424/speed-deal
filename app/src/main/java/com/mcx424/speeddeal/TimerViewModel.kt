@@ -20,8 +20,8 @@ import kotlinx.coroutines.launch
 data class TimerUiState(
     val playerCount: Int = 4,
     val currentPlayer: Int = 1,
-    val turnSeconds: Int = 60,
-    val remainingSeconds: Int = 60,
+    val turnSeconds: Int = 25,
+    val remainingSeconds: Int = 25,
     val isRunning: Boolean = false,
     val totalTurns: Int = 0
 )
@@ -40,6 +40,8 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         } catch (_: Exception) {
             toneGenerator = null
         }
+        // Table timer starts ready for play; settings sheet does not pause it.
+        startOrResume()
     }
 
     fun setPlayerCount(count: Int) {
@@ -51,13 +53,10 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setTurnSeconds(seconds: Int) {
-        val clamped = seconds.coerceIn(5, 600)
+        val clamped = seconds.coerceIn(MIN_TURN_SECONDS, MAX_TURN_SECONDS)
         _uiState.update { state ->
-            if (state.isRunning) {
-                state.copy(turnSeconds = clamped)
-            } else {
-                state.copy(turnSeconds = clamped, remainingSeconds = clamped)
-            }
+            // Apply immediately when changed (including mid-turn).
+            state.copy(turnSeconds = clamped, remainingSeconds = clamped)
         }
     }
 
@@ -78,8 +77,10 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resetCurrentTurn() {
-        pause()
         _uiState.update { it.copy(remainingSeconds = it.turnSeconds) }
+        if (!_uiState.value.isRunning) {
+            startOrResume()
+        }
     }
 
     private fun startTicker() {
@@ -144,5 +145,11 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         toneGenerator?.release()
         toneGenerator = null
         super.onCleared()
+    }
+
+    companion object {
+        const val MIN_TURN_SECONDS = 10
+        const val MAX_TURN_SECONDS = 60
+        const val DEFAULT_TURN_SECONDS = 25
     }
 }
