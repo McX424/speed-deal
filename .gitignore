@@ -1,0 +1,18 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.dex
+*.class
+bin/
+gen/
+out/
+.navigation/
+*.log
+# Keep signed sideload keystore in repo for Carl; do not reuse for Play upload key
