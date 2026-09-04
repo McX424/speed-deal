@@ -40,8 +40,7 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
         } catch (_: Exception) {
             toneGenerator = null
         }
-        // Table timer starts ready for play; settings sheet does not pause it.
-        startOrResume()
+        // Idle on fresh open — user taps Start; do not auto-start.
     }
 
     fun setPlayerCount(count: Int) {
@@ -77,10 +76,9 @@ class TimerViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resetCurrentTurn() {
+        // Stop timer, restore full turn length, stay on current player, idle (Start).
+        pause()
         _uiState.update { it.copy(remainingSeconds = it.turnSeconds) }
-        if (!_uiState.value.isRunning) {
-            startOrResume()
-        }
     }
 
     private fun startTicker() {

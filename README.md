@@ -1,6 +1,6 @@
 # Speed Deal
 
-Turn timer for multiplayer card-game tables. Large countdown, whose-turn indicator (P1–P6), swipe-up settings for players and turn length, auto-advance with a clear beep when time runs out, and a big **Next** button to pass early.
+Turn timer for multiplayer card-game tables. Large countdown, whose-turn indicator (P1–P6), swipe-up settings for players and turn length, auto-advance with a clear beep when time runs out, **Start**/**Next** primary action, plus **Pause** and **Reset**.
 
 Offline, no accounts, no network, no ads.
 
@@ -13,7 +13,7 @@ Offline, no accounts, no network, no ads.
 | Turn length    | **25 seconds** (min **10**, max **60**) |
 | Player count   | **4** (range 2–6) |
 
-Players and turn length live in a **swipe-up ModalBottomSheet**. The main screen shows only the countdown, current seat (P1/P2/…), and **Next**. Opening the sheet does not pause the timer; changing seconds or player count applies immediately.
+Players and turn length live in a **swipe-up ModalBottomSheet**. The main screen shows the countdown, current seat (P1/P2/…), primary **Start** (idle) / **Next** (running), and **Pause** / **Reset**. Fresh open is idle (does not auto-start). Opening the sheet does not pause the timer; changing seconds or player count applies immediately.
 
 ## Requirements
 
@@ -76,11 +76,13 @@ Carl needs his own [Google Play developer account](https://play.google.com/conso
 
 1. Turn length 10–60s (default 25s) in settings sheet
 2. Large countdown for the current seat
-3. At zero: tone + brief vibrate, timer resets, advances to next player
-4. **Next** — same advance + reset
-5. Player count 2–6 in settings sheet
-6. Dark Material 3 Compose UI; screen stays on while the timer runs
-7. Settings sheet does not pause the timer; value changes apply on change
+3. Fresh open: idle with **Start** (no auto-start)
+4. Primary button: **Start** when idle → `startOrResume()`; **Next** when running → end turn early
+5. **Pause** → pause; **Reset** → pause, restore remaining to turn length, stay idle on current player
+6. At zero: tone + brief vibrate, advances to next player, keeps running (button stays **Next**)
+7. Player count 2–6 in settings sheet
+8. Dark Material 3 Compose UI; screen stays on while the timer runs
+9. Settings sheet does not pause the timer; value changes apply on change
 
 ## Tech
 

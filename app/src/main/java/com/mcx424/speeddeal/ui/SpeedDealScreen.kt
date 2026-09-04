@@ -23,6 +23,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,7 +70,10 @@ fun SpeedDealScreen(
     state: TimerUiState,
     onPlayerCountChange: (Int) -> Unit,
     onTurnSecondsChange: (Int) -> Unit,
-    onEndTurn: () -> Unit
+    onStartResume: () -> Unit,
+    onPause: () -> Unit,
+    onEndTurn: () -> Unit,
+    onResetTurn: () -> Unit
 ) {
     val progress = if (state.turnSeconds > 0) {
         state.remainingSeconds.toFloat() / state.turnSeconds.toFloat()
@@ -118,7 +123,10 @@ fun SpeedDealScreen(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "YOUR TURN",
+                text = when {
+                    state.isRunning -> "YOUR TURN"
+                    else -> "READY"
+                },
                 style = MaterialTheme.typography.labelLarge,
                 color = TextMuted,
                 letterSpacing = 2.sp
@@ -152,8 +160,11 @@ fun SpeedDealScreen(
                 )
             }
 
+            // Primary: Start when idle, Next when running
             Button(
-                onClick = onEndTurn,
+                onClick = {
+                    if (state.isRunning) onEndTurn() else onStartResume()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(72.dp),
@@ -164,10 +175,59 @@ fun SpeedDealScreen(
                 )
             ) {
                 Text(
-                    text = "NEXT",
+                    text = if (state.isRunning) "NEXT" else "START",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Pause + Reset on the main play screen
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilledTonalButton(
+                    onClick = onPause,
+                    enabled = state.isRunning,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = SeatIdle,
+                        contentColor = TextPrimary,
+                        disabledContainerColor = SeatIdle.copy(alpha = 0.45f),
+                        disabledContentColor = TextMuted
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Pause,
+                        contentDescription = null
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Pause", fontWeight = FontWeight.SemiBold)
+                }
+                FilledTonalButton(
+                    onClick = onResetTurn,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = SeatIdle,
+                        contentColor = TextPrimary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Reset", fontWeight = FontWeight.SemiBold)
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
