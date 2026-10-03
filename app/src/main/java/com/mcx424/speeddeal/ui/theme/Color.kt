@@ -2,14 +2,14 @@ package com.mcx424.speeddeal.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Ink = Color(0xFF0B0F14)
-val SurfaceDark = Color(0xFF121821)
-val CardDark = Color(0xFF1A2332)
-val AccentGreen = Color(0xFF4ADE80)
-val AccentAmber = Color(0xFFFBBF24)
-val AccentRed = Color(0xFFF87171)
-val AccentCyan = Color(0xFF22D3EE)
-val TextPrimary = Color(0xFFF1F5F9)
-val TextMuted = Color(0xFF94A3B8)
-val SeatActive = Color(0xFF4ADE80)
-val SeatIdle = Color(0xFF334155)
+// Grok-style monochrome dark palette.
+val Background = Color(0xFF0A0A0A)
+val SurfaceCard = Color(0xFF121212)
+val Border = Color(0xFF262626)
+val TextPrimary = Color(0xFFECECEC)
+val TextSecondary = Color(0xFF9A9A9A)
+val Highlight = Color(0xFFFFFFFF)
+val HighlightCool = Color(0xFFE4E8EE)
+
+// Only non-grey colour: muted red, used solely to signal "time up".
+val TimeUpRed = Color(0xFFE5534B)

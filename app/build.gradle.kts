@@ -2,7 +2,16 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("io.github.takahirom.roborazzi")
 }
+
+// Optional personal-only logo (git-ignored). The app looks it up at runtime and falls back
+// to a text wordmark when it is absent, so the public repo builds without it.
+val personalLogo = file("src/main/res/drawable-nodpi/logo_monopoly_deal.png")
+logger.lifecycle(
+    if (personalLogo.exists()) "Speed Deal: personal logo FOUND - do not commit/publish this APK"
+    else "Speed Deal: no personal logo - building logo-free (text wordmark)"
+)
 
 android {
     namespace = "com.mcx424.speeddeal"
@@ -12,8 +21,8 @@ android {
         applicationId = "com.mcx424.speeddeal"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
     }
 
     signingConfigs {
@@ -53,6 +62,16 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                // Robolectric native graphics so Compose renders real pixels for screenshots.
+                it.systemProperty("robolectric.graphicsMode", "NATIVE")
+                it.systemProperty("robolectric.pixelCopyRenderMode", "hardware")
+            }
+        }
+    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -74,4 +93,12 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // Phone-size screenshot tests (Robolectric + Roborazzi): ./gradlew recordRoborazziDebug
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.36.0")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.36.0")
 }

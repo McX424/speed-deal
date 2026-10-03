@@ -16,3 +16,8 @@ out/
 .navigation/
 *.log
 # Keep signed sideload keystore in repo for Carl; do not reuse for Play upload key
+
+# Personal-only trademark artwork (Monopoly Deal logo is a Hasbro trademark).
+# Never commit it, or any APK built with it, to this public repo.
+/app/src/main/res/drawable-nodpi/logo_monopoly_deal.png
+/app/src/main/res/drawable*/logo_monopoly_deal.*

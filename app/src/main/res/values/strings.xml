@@ -1,4 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Speed Deal</string>
+
+    <string name="wordmark_speed">SPEED</string>
+    <string name="wordmark_fallback">DEAL</string>
+    <string name="logo_description">Monopoly Deal</string>
+
+    <string name="status_ready">READY</string>
+    <string name="status_running">TURN %1$d</string>
+    <string name="status_paused">PAUSED</string>
+    <string name="status_time_up">TIME UP</string>
+
+    <string name="action_start">START</string>
+    <string name="action_stop">STOP</string>
+    <string name="action_reset">RESET</string>
+
+    <string name="settings_affordance">Turn length · %1$ds</string>
+    <string name="settings_open">Open turn length</string>
+    <string name="settings_title">Turn length</string>
+    <string name="settings_subtitle">Changes apply immediately.</string>
+    <string name="settings_seconds">%1$ds</string>
+    <string name="settings_done">Done</string>
 </resources>

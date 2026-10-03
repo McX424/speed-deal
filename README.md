@@ -1,19 +1,34 @@
 # Speed Deal
 
-Turn timer for multiplayer card-game tables. Large countdown, whose-turn indicator (P1–P6), swipe-up settings for players and turn length, auto-advance with a clear beep when time runs out, **Start**/**Next** primary action, plus **Pause** and **Reset**.
+Single repeating turn timer for card-game tables. Huge countdown, a clear beep + short vibration when time runs out, then the next turn starts automatically. Big **Start/Stop** and **Reset** buttons are always on screen.
 
-Offline, no accounts, no network, no ads.
-
-**Working title:** Speed Deal. This project does not use any trademarked board-game names, logos, or art.
+Offline, no accounts, no network, no ads. Personal use only (not for any app store).
 
 ## Defaults
 
 | Setting        | Default / range |
 |----------------|-----------------|
 | Turn length    | **25 seconds** (min **10**, max **60**) |
-| Player count   | **4** (range 2–6) |
 
-Players and turn length live in a **swipe-up ModalBottomSheet**. The main screen shows the countdown, current seat (P1/P2/…), primary **Start** (idle) / **Next** (running), and **Pause** / **Reset**. Fresh open is idle (does not auto-start). Opening the sheet does not pause the timer; changing seconds or player count applies immediately.
+Turn length lives in a **ModalBottomSheet** opened from the small "Turn length · 25s" row under the buttons. The main screen shows the header, the countdown with its status (READY / TURN n / PAUSED / TIME UP) and a thin progress bar, then **Start/Stop** and **Reset**. A fresh open is idle (no auto-start). Opening the sheet does not pause the timer; changing seconds applies immediately.
+
+## Controls
+
+| Button       | Behaviour |
+|--------------|-----------|
+| **Start/Stop** | Toggles. Idle or paused → START counts down. Running → STOP pauses. Stopping during TIME UP cancels the auto-restart and loads a fresh turn. |
+| **Reset**    | Returns the timer to the selected turn length. If it is running, the next turn starts at once (one tap to pass the turn). If it is stopped, it stays stopped. |
+
+At zero: tone + vibrate, **TIME UP** pulses (muted red) for 2 s, then the next turn starts automatically.
+
+## Header logo (personal builds only)
+
+The header can show the **Monopoly Deal** logo with **SPEED** underneath. The logo is a Hasbro trademark, so it is **not** in this public repo:
+
+- Personal builds put the image at `app/src/main/res/drawable-nodpi/logo_monopoly_deal.png`. That path is in `.gitignore`.
+- The app looks the drawable up at runtime. If it is missing (as in this repo), the header shows a plain **SPEED / DEAL** text wordmark instead, so the public repo always builds.
+- Gradle prints `Speed Deal: personal logo FOUND` or `... no personal logo ...` at configuration time, so you can tell which kind of APK you are building.
+- **Never commit or publish** an APK built with the logo (no GitHub releases, no `artifacts/`).
 
 ## Requirements
 
@@ -31,23 +46,27 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 ./gradlew assembleRelease
 ```
 
-Debug APK:
+Debug APK: `app/build/outputs/apk/debug/app-debug.apk` (installs as a separate app, `com.mcx424.speeddeal.debug`).
 
-- `app/build/outputs/apk/debug/app-debug.apk`
-- also copied to `artifacts/speed-deal-debug.apk`
+Release APK (signed with the local sideload keystore): `app/build/outputs/apk/release/app-release.apk`.
 
-Release APK (signed with the local sideload keystore):
+The committed `artifacts/speed-deal-release.apk` is a **logo-free** release build (text wordmark header).
 
-- `app/build/outputs/apk/release/app-release.apk`
-- also copied to `artifacts/speed-deal-release.apk`
+## Screenshot tests
+
+```bash
+./gradlew recordRoborazziDebug   # Robolectric render at 411x914dp @ 420dpi (~1080x2400)
+```
+
+Writes `idle`, `running`, `paused` and `timeup` PNGs to `app/build/outputs/roborazzi/` (git-ignored). If the personal logo is present they include it, so don't commit them.
 
 ## Sideload install
 
 ```bash
-adb install -r artifacts/speed-deal-debug.apk
-# or
 adb install -r artifacts/speed-deal-release.apk
 ```
+
+Release builds are all signed with the same keystore, so `-r` updates an existing install in place and keeps settings.
 
 ## Sideload signing (local keystore)
 
@@ -74,15 +93,14 @@ Carl needs his own [Google Play developer account](https://play.google.com/conso
 
 ## Features
 
-1. Turn length 10–60s (default 25s) in settings sheet
-2. Large countdown for the current seat
-3. Fresh open: idle with **Start** (no auto-start)
-4. Primary button: **Start** when idle → `startOrResume()`; **Next** when running → end turn early
-5. **Pause** → pause; **Reset** → pause, restore remaining to turn length, stay idle on current player
-6. At zero: tone + brief vibrate, advances to next player, keeps running (button stays **Next**)
-7. Player count 2–6 in settings sheet
-8. Dark Material 3 Compose UI; screen stays on while the timer runs
-9. Settings sheet does not pause the timer; value changes apply on change
+1. Single repeating turn timer, 10–60 s (default 25 s), set in a bottom sheet
+2. Huge bold countdown with tabular figures, thin progress bar, status label
+3. Fresh open: idle (no auto-start)
+4. **Start/Stop** toggles; **Reset** restores the turn length (and starts the next turn if running)
+5. At zero: tone + brief vibrate, TIME UP pulse, then the next turn starts automatically
+6. Start/Stop and Reset always visible (idle, running, paused, time-up), 84 dp tall
+7. Grok-style dark theme: #0A0A0A background, #121212 surfaces, #262626 borders, #ECECEC / #9A9A9A text, cool-grey #E4E8EE highlights; dark status and navigation bars
+8. Screen stays on while the timer runs
 
 ## Tech
 
@@ -90,7 +108,8 @@ Carl needs his own [Google Play developer account](https://play.google.com/conso
 - `applicationId`: `com.mcx424.speeddeal`
 - minSdk 26, targetSdk / compileSdk 35
 - Gradle Kotlin DSL
-- Turn-end sound via `ToneGenerator` (no copyrighted assets)
+- Turn-end sound via `ToneGenerator`
+- Optional header logo resolved at runtime (`Resources.getIdentifier`) so it can stay out of git
 
 ## License
 

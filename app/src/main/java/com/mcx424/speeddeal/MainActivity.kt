@@ -1,8 +1,10 @@
 package com.mcx424.speeddeal
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -21,12 +23,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Dark status + navigation bars with light icons, matching the #0A0A0A background.
+        val barColor = Color.parseColor("#0A0A0A")
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(barColor),
+            navigationBarStyle = SystemBarStyle.dark(barColor)
+        )
         setContent {
             val state by viewModel.uiState.collectAsState()
 
-            LaunchedEffect(state.isRunning) {
-                if (state.isRunning) {
+            LaunchedEffect(state.isActive) {
+                if (state.isActive) {
                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 } else {
                     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -37,12 +44,9 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     SpeedDealScreen(
                         state = state,
-                        onPlayerCountChange = viewModel::setPlayerCount,
                         onTurnSecondsChange = viewModel::setTurnSeconds,
-                        onStartResume = viewModel::startOrResume,
-                        onPause = viewModel::pause,
-                        onEndTurn = viewModel::endTurnEarly,
-                        onResetTurn = viewModel::resetCurrentTurn
+                        onStartStop = viewModel::toggleStartStop,
+                        onReset = viewModel::reset
                     )
                 }
             }
