@@ -21,6 +21,23 @@ Turn length lives in a **ModalBottomSheet** opened from the small "Turn length �
 
 At zero: tone + vibrate, **TIME UP** pulses (muted red) for 2 s, then the next turn starts automatically.
 
+## End-of-turn warning
+
+The countdown (and its progress bar) warms up smoothly as the turn runs out: **#ECECEC → amber #E0A84E → muted red #E5534B**.
+
+| | |
+|---|---|
+| Warming starts | `max(25% of turn, 10 s)` left, capped at the turn length (25 s turn → 10 s, 60 s turn → 15 s) |
+| Pure amber | 40% of the way through the ramp (8 s left on a 25 s turn) |
+| Full red | 5 s left, held until TIME UP |
+| Pulse | final 5 s: gentle ~1 Hz breathe (scale 1.00→1.04, alpha 1.00→0.85, eased), drawn with `graphicsLayer` |
+
+The colour follows a per-frame interpolated remaining time (no once-a-second steps) and is read only in draw lambdas, so nothing recomposes or relayouts per frame. Digits are tabular, so nothing shifts.
+
+- **Reset / new turn** (including the automatic next turn after TIME UP): back to white, no pulse, on the next frame.
+- **Paused**: holds the current colour, dimmed; no pulse.
+- **Reduce motion** (system *Animator duration scale* off, or Accessibility *Remove animations*): no pulse and no TIME UP flash; the colour ramp stays.
+
 ## Header logo (personal builds only)
 
 The header can show the **Monopoly Deal** logo with **SPEED** underneath. The logo is a Hasbro trademark, so it is **not** in this public repo:
@@ -58,7 +75,7 @@ The committed `artifacts/speed-deal-release.apk` is a **logo-free** release buil
 ./gradlew recordRoborazziDebug   # Robolectric render at 411x914dp @ 420dpi (~1080x2400)
 ```
 
-Writes `idle`, `running`, `paused` and `timeup` PNGs to `app/build/outputs/roborazzi/` (git-ignored). If the personal logo is present they include it, so don't commit them.
+Writes `idle`, `running`, `paused`, `timeup`, `warn-amber`, `warn-red` and `warning-frames/` PNGs to `app/build/outputs/roborazzi/` (git-ignored). If the personal logo is present they include it, so don't commit them.
 
 ## Sideload install
 
@@ -101,6 +118,7 @@ Carl needs his own [Google Play developer account](https://play.google.com/conso
 6. Start/Stop and Reset always visible (idle, running, paused, time-up), 84 dp tall
 7. Grok-style dark theme: #0A0A0A background, #121212 surfaces, #262626 borders, #ECECEC / #9A9A9A text, cool-grey #E4E8EE highlights; dark status and navigation bars
 8. Screen stays on while the timer runs
+9. End-of-turn warning: smooth white → amber → red ramp and a gentle final-5 s pulse (respects reduce motion)
 
 ## Tech
 

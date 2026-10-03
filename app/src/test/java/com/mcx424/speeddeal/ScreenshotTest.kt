@@ -95,4 +95,59 @@ class ScreenshotTest {
         compose.onNodeWithText("READY").assertExists()
         compose.onNodeWithText("0:25").assertExists()
     }
+
+    /** Advance the view-model clock (main looper) and the Compose frame clock together. */
+    private fun stepBoth(ms: Long) {
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(ms))
+        compose.mainClock.advanceTimeBy(ms)
+    }
+
+    /**
+     * Run a 25 s turn until [secondsLeft] has *just* appeared (start of that second), with the
+     * Compose clock under manual control so the smooth ramp/pulse are captured at a real instant.
+     */
+    private fun runUntilShowing(secondsLeft: Int, manualFromSeconds: Int = secondsLeft + 1) {
+        compose.onNodeWithText("START").performClick()
+        // Infinite animations (the final-seconds breathe) only tick under the manual clock, so
+        // switch to manual before the pulse window when capturing it.
+        advanceUntilText("0:%02d".format(manualFromSeconds), maxSeconds = 30)
+        compose.mainClock.autoAdvance = false
+        val target = "0:%02d".format(secondsLeft)
+        repeat(200) {
+            if (compose.onAllNodesWithText(target).fetchSemanticsNodes().isNotEmpty()) return@repeat
+            stepBoth(50)
+        }
+        compose.onNodeWithText(target).assertExists()
+        compose.mainClock.advanceTimeByFrame()
+    }
+
+    @Test
+    fun warnAmber() {
+        runUntilShowing(8)
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/warn-amber.png")
+    }
+
+    @Test
+    fun warnRed() {
+        runUntilShowing(3, manualFromSeconds = 8)
+        // ~Peak of the breathe (500 ms into the 1 s cycle) so the pulse shows in the still.
+        stepBoth(400)
+        compose.onRoot().captureRoboImage("build/outputs/roborazzi/warn-red.png")
+    }
+
+    /**
+     * Frames across the last ~11 s of a 25 s turn (8 fps), through TIME UP into the next turn.
+     * Both clocks advance together: the Android main looper (view-model ticks) and the Compose
+     * frame clock (smooth ramp + pulse).
+     */
+    @Test
+    fun warningFrames() {
+        runUntilShowing(11)
+        val stepMs = 125L
+        val frames = ((11 + 3) * 1000 / stepMs).toInt()
+        for (i in 0 until frames) {
+            compose.onRoot().captureRoboImage("build/outputs/roborazzi/warning-frames/f%03d.png".format(i))
+            stepBoth(stepMs)
+        }
+    }
 }

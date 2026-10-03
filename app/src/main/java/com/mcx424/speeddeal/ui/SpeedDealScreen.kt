@@ -1,24 +1,20 @@
 package com.mcx424.speeddeal.ui
 
 import android.annotation.SuppressLint
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,7 +49,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
@@ -64,6 +59,22 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
@@ -93,7 +104,8 @@ fun SpeedDealScreen(
     state: TimerUiState,
     onTurnSecondsChange: (Int) -> Unit,
     onStartStop: () -> Unit,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    reduceMotion: Boolean = rememberReduceMotion()
 ) {
     var showSettings by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -117,6 +129,7 @@ fun SpeedDealScreen(
 
             TimerBlock(
                 state = state,
+                reduceMotion = reduceMotion,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -248,45 +261,112 @@ private fun rememberOptionalDrawable(name: String): Int {
     }
 }
 
-/** Flashing alpha for the time-up state; only composed while time is up. */
+/** Fast flash for the time-up state; only composed while time is up (and motion is allowed). */
 @Composable
-private fun rememberPulseAlpha(): Float {
-    val pulse = rememberInfiniteTransition(label = "timeUpPulse")
-    val alpha by pulse.animateFloat(
+private fun rememberTimeUpFlash(): State<Float> {
+    val flash = rememberInfiniteTransition(label = "timeUpFlash")
+    return flash.animateFloat(
         initialValue = 1f,
         targetValue = 0.35f,
         animationSpec = infiniteRepeatable(tween(350), RepeatMode.Reverse),
-        label = "pulseAlpha"
+        label = "timeUpFlashAlpha"
     )
-    return alpha
+}
+
+/** Gentle ~1 Hz breathe for the final seconds: 0 → 1 → 0 per second, eased. */
+@Composable
+private fun rememberBreathe(): State<Float> {
+    val breathe = rememberInfiniteTransition(label = "finalSecondsBreathe")
+    return breathe.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(500, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "breathe"
+    )
+}
+
+private val NoMotion: State<Float> = mutableFloatStateOf(0f)
+private val FullAlpha: State<Float> = mutableFloatStateOf(1f)
+
+/**
+ * Smooth (per-frame) remaining time while running. The view model ticks once a second; between
+ * ticks this interpolates from N down to N-1 using the frame clock, so the colour ramp and progress
+ * bar glide instead of stepping. Values are only read in draw/layer lambdas (no per-frame recomposition).
+ */
+@Composable
+private fun rememberSmoothRemaining(state: TimerUiState): () -> Float {
+    val base = remember { mutableIntStateOf(state.remainingSeconds) }
+    val value = remember { mutableFloatStateOf(state.remainingSeconds.toFloat()) }
+    LaunchedEffect(state.remainingSeconds, state.phase) {
+        base.intValue = state.remainingSeconds
+        value.floatValue = state.remainingSeconds.toFloat()
+        if (state.phase == TimerPhase.RUNNING && state.remainingSeconds > 0) {
+            val start = withFrameNanos { it }
+            var done = false
+            while (!done) {
+                withFrameNanos { now ->
+                    val elapsed = ((now - start) / 1_000_000_000f).coerceIn(0f, 1f)
+                    value.floatValue = state.remainingSeconds - elapsed
+                    done = elapsed >= 1f
+                }
+            }
+        }
+    }
+    val running = state.phase == TimerPhase.RUNNING
+    val remaining = state.remainingSeconds
+    // Until the effect has caught up with a new value (reset / new turn / pause), use the exact
+    // value, so reset to white is instant (no stale frame).
+    return remember(running, remaining) {
+        { if (running && base.intValue == remaining) value.floatValue else remaining.toFloat() }
+    }
 }
 
 @Composable
-private fun TimerBlock(state: TimerUiState, modifier: Modifier = Modifier) {
-    val isTimeUp = state.phase == TimerPhase.TIME_UP
+private fun TimerBlock(
+    state: TimerUiState,
+    reduceMotion: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val phase = state.phase
+    val turnSeconds = state.turnSeconds
+    val isTimeUp = phase == TimerPhase.TIME_UP
+    val smoothRemaining = rememberSmoothRemaining(state)
 
-    val pulseAlpha = if (isTimeUp) rememberPulseAlpha() else 1f
+    // Composition-level flags only change at thresholds, so they don't recompose per frame.
+    val inPulseWindow by remember(phase, smoothRemaining) {
+        derivedStateOf { phase == TimerPhase.RUNNING && TimerWarmth.shouldPulse(smoothRemaining()) }
+    }
+    val pulsing = inPulseWindow && !reduceMotion
+    val breathe = if (pulsing) rememberBreathe() else NoMotion
+    val flash = if (isTimeUp && !reduceMotion) rememberTimeUpFlash() else FullAlpha
 
-    val timerColor by animateColorAsState(
-        targetValue = when (state.phase) {
-            TimerPhase.TIME_UP -> TimeUpRed
-            TimerPhase.PAUSED -> TextSecondary
-            else -> TextPrimary
-        },
-        animationSpec = tween(200),
-        label = "timerColor"
-    )
+    // Colour for the current instant (read in draw, so it updates every frame without recomposing).
+    val colorNow: () -> Color = remember(phase, turnSeconds, smoothRemaining) {
+        {
+            when (phase) {
+                TimerPhase.IDLE -> TextPrimary
+                TimerPhase.TIME_UP -> TimeUpRed
+                TimerPhase.RUNNING -> TimerWarmth.color(smoothRemaining(), turnSeconds)
+                // Paused holds the current ramp colour, dimmed, and never pulses.
+                TimerPhase.PAUSED -> TimerWarmth.color(smoothRemaining(), turnSeconds).copy(alpha = 0.6f)
+            }
+        }
+    }
+    // Quantised copy for semantics/tests (changes at most 4x a second, only inside the ramp).
+    val semanticsColor by remember(colorNow, phase, turnSeconds, smoothRemaining) {
+        derivedStateOf {
+            val q = kotlin.math.ceil(smoothRemaining() * 4f) / 4f
+            when (phase) {
+                TimerPhase.RUNNING -> TimerWarmth.color(q, turnSeconds)
+                TimerPhase.PAUSED -> TimerWarmth.color(q, turnSeconds).copy(alpha = 0.6f)
+                else -> colorNow()
+            }
+        }
+    }
 
-    val progress = if (state.turnSeconds > 0) {
-        state.remainingSeconds.toFloat() / state.turnSeconds.toFloat()
-    } else 0f
-    val animatedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(400),
-        label = "progress"
-    )
+    val semColorNow = semanticsColor
 
-    val statusText = when (state.phase) {
+    val statusText = when (phase) {
         TimerPhase.IDLE -> stringResource(R.string.status_ready)
         TimerPhase.RUNNING -> stringResource(R.string.status_running, state.turnNumber)
         TimerPhase.PAUSED -> stringResource(R.string.status_paused)
@@ -300,7 +380,15 @@ private fun TimerBlock(state: TimerUiState, modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(28.dp))
                 .background(SurfaceCard)
-                .border(1.dp, if (isTimeUp) TimeUpRed.copy(alpha = pulseAlpha) else Border, RoundedCornerShape(28.dp))
+                .drawWithContent {
+                    drawContent()
+                    val borderColor = if (isTimeUp) TimeUpRed.copy(alpha = flash.value) else Border
+                    drawRoundRect(
+                        color = borderColor,
+                        cornerRadius = CornerRadius(28.dp.toPx()),
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+                }
                 .padding(horizontal = 20.dp, vertical = 28.dp)
         ) {
             Text(
@@ -309,31 +397,56 @@ private fun TimerBlock(state: TimerUiState, modifier: Modifier = Modifier) {
                 color = if (isTimeUp) TimeUpRed else TextSecondary
             )
             Spacer(Modifier.height(4.dp))
-            Text(
+            BasicText(
                 text = formatTime(state.remainingSeconds),
-                style = TimerTextStyle,
-                color = timerColor,
-                textAlign = TextAlign.Center,
+                // Fixed-width (tabular) digits: nothing shifts as the numbers change or pulse.
+                style = TimerTextStyle.copy(textAlign = TextAlign.Center),
+                color = { colorNow() },
                 maxLines = 1,
-                modifier = Modifier.alpha(if (isTimeUp) pulseAlpha else 1f)
+                modifier = Modifier
+                    .testTag(TIMER_TEST_TAG)
+                    .semantics {
+                        timerColor = semColorNow
+                        timerPulsing = pulsing
+                    }
+                    // Layer-only transforms: scale/alpha never trigger a relayout.
+                    .graphicsLayer {
+                        val b = breathe.value
+                        val s = 1f + 0.04f * b
+                        scaleX = s
+                        scaleY = s
+                        alpha = (1f - 0.15f * b) * flash.value
+                    }
             )
             Spacer(Modifier.height(16.dp))
-            // Thin progress track.
+            // Thin progress track; fill follows the smooth remaining time and the warm colour.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp))
                     .background(Border)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(animatedProgress.coerceIn(0f, 1f))
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(if (state.phase == TimerPhase.PAUSED) TextSecondary else HighlightCool)
-                )
-            }
+                    .drawBehind {
+                        val fraction = if (turnSeconds > 0) {
+                            (smoothRemaining() / turnSeconds).coerceIn(0f, 1f)
+                        } else 0f
+                        val fill = when (phase) {
+                            TimerPhase.IDLE -> HighlightCool
+                            TimerPhase.TIME_UP -> TimeUpRed
+                            else -> {
+                                val c = colorNow()
+                                if (TimerWarmth.progress(smoothRemaining(), turnSeconds) <= 0f) {
+                                    HighlightCool.copy(alpha = c.alpha)
+                                } else c
+                            }
+                        }
+                        drawRoundRect(
+                            color = fill,
+                            size = Size(size.width * fraction, size.height),
+                            cornerRadius = CornerRadius(size.height / 2f)
+                        )
+                    }
+            )
         }
     }
 }
